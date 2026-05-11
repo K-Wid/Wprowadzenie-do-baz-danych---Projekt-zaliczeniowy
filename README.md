@@ -29,4 +29,4 @@ pip install pandas
 #### Obecny stan projektu
 Uruchomienie projektu wymaga stworzenia pustej bazy danych w zewnętrznym programie oraz uruchomienia [kodu SQL tworzącego podstawowe tabele](https://github.com/K-Wid/Wprowadzenie-do-baz-danych---Projekt-zaliczeniowy/blob/890301137d357166779b3831c43d062e80ab8543/SQL_scripts/creating_tables). W przypadku konieczności przywrócenia bazy danych do stanu początkowego trzeba uruchomić [kod SQL usuwający tabele](https://github.com/K-Wid/Wprowadzenie-do-baz-danych---Projekt-zaliczeniowy/blob/890301137d357166779b3831c43d062e80ab8543/SQL_scripts/creating_tables) i ponownie stworzyć tabele.
 
-Istnieje plik [test.py](https://github.com/K-Wid/Wprowadzenie-do-baz-danych---Projekt-zaliczeniowy/blob/890301137d357166779b3831c43d062e80ab8543/Python_code/test.py), który testuje podstawową funkcjonalność programu.
+Istnieje plik [test.py](https://github.com/K-Wid/Wprowadzenie-do-baz-danych---Projekt-zaliczeniowy/blob/890301137d357166779b3831c43d062e80ab8543/Python_code/test.py), który testuje podstawową funkcjonalność programu. **W obecnym stanie kod nie obsługuje wyjątków.**
