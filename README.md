@@ -1,5 +1,10 @@
 # Wprowadzenie-do-baz-danych---Projekt-zaliczeniowy
 Projekt zaliczeniowy przedmiotu Wprowadzenie do baz danych.
 
-#### Schemat ERD bazy danych | [Plik żródłowy](https://github.com/K-Wid/Wprowadzenie-do-baz-danych---Projekt-zaliczeniowy/Database_info/ERD.puml)
-![Entity Diagram](http://www.plantuml.com/plantuml/proxy?src=https://raw.githubusercontent.com/Wprowadzenie-do-baz-danych---Projekt-zaliczeniowy/Database_info/ERD.puml)
+#### Schemat ERD bazy danych
+
+[Plik żródłowy (obraz)](https://github.com/K-Wid/Wprowadzenie-do-baz-danych---Projekt-zaliczeniowy/Database_info/ERD.png)
+
+[Plik żródłowy (PlantUML)](https://github.com/K-Wid/Wprowadzenie-do-baz-danych---Projekt-zaliczeniowy/Database_info/ERD.puml)
+
+![https://github.com/K-Wid/Wprowadzenie-do-baz-danych---Projekt-zaliczeniowy/Database_info/ERD.png]
