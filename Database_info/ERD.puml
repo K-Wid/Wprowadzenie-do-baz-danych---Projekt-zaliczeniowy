@@ -1,0 +1,114 @@
+@startuml
+skinparam linetype ortho
+
+entity date_table {
+    date_id : integer
+    --
+    date_value: date
+}
+
+entity time_table {
+    time_id : integer
+    --
+    time_value: time
+}
+
+entity error_table {
+    error_id: integer
+    --
+    reason: text
+}
+
+entity log_import {
+    import_id: integer
+    --
+    date_id: integer
+    time_id: integer
+    error_id: integer | NULL
+}
+
+entity timezone {
+    timezone_id: integer
+    --
+    full_name: text
+    short_name: text
+}
+
+entity location_table {
+    location_id: integer
+    --
+    latitude: float
+    longitude: float
+    elevation: float
+    timezone_id: integer | NULL
+    name: text
+}
+
+entity measurement {
+    measurement_id: integer
+    --
+    location_id: integer
+    date_id: integer
+    time_id: integer
+    import_id: integer
+}
+
+entity temperature {
+    --
+    measurement_id: integer
+    temperature: float
+    apparent_temperature: float
+}
+
+entity precipitation {
+    --
+    measurement_id: integer
+    relative_humidity: float
+    precipitation: float
+    rain: float
+    snowfall: float
+}
+
+entity wind {
+    --
+    measurement_id: integer
+    wind_speed: float
+    wind_direction: float
+    wind_gusts: float
+}
+
+    entity weather_code {
+    weather_code_id: integer
+    --
+    description: text
+}
+
+entity weather {
+    --
+    measurement_id: integer
+    surface_pressure: float
+    cloud_cover: float
+    weather_code_id: integer
+}
+
+log_import }|--|| date_table
+log_import }|--|| time_table
+log_import }|--|| error_table
+
+location_table }|--|| timezone
+
+measurement }|--|| location_table
+measurement }|--|| date_table
+measurement }|--|| time_table
+measurement ||--o| log_import
+
+temperature ||--|| measurement
+
+precipitation ||--|| measurement
+
+wind ||--|| measurement
+
+weather ||--|| measurement
+weather }|--|| weather_code
+
+@enduml
