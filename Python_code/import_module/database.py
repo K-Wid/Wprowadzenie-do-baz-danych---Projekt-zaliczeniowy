@@ -12,8 +12,14 @@ from import_module import import_from_openmeteo
 
 from typing import Tuple, List
 from datetime import datetime, timezone, timedelta
+from enum import Enum
 
 global engine
+
+
+class InsertStatus(Enum):
+    SUCCESS = 0
+    MASUREMENT_ALREADY_EXISTS = 1
 
 
 def setup_engine(url: str):
@@ -120,26 +126,19 @@ def get_or_create_time_id(time: str, create_new_entry: bool = False) -> int | No
         return df.at[0, "time_id"]
 
 
-def split_timestamp(timestamp: str) -> Tuple[str, str, str]:
-    date, time = timestamp.split('T')
-    if '+' in time:
-        time, timezone_offset = time.split('+')
-        return date, time, timezone_offset
-    return date, time, ""
-
-
-def check_if_measurement_already_exists(timestamp: str) -> int | None:
+def check_if_measurement_already_exists(date: str, time: str) -> int | None:
     """
     Function checks if measurement entry with given timestamp exists in database. Returns None if not found, returns measurement_id of measurement with specified timestamp.
     
-    :params timestamp: Timestamp in ISO 8601 string ("YYYY-MM-DDTHH-MM-SS)
+    :params date: Date as string like "YYYY-MM-DD"
+    :type timestamp: str
+
+    :params time: Time as string like "HH-MM"
     :type timestamp: str
 
     :return: None if no measurement has the same timestamp / measurement_id if same one exists.
     :rtype: int | None
     """
-    date, time = timestamp.split('T')
-    time, timezone_offset = time.split('+')
     date_id = get_or_create_date_id(date, False)
     time_id = get_or_create_time_id(time, False)
     if (date_id is None) or (time_id is None): return None
@@ -150,7 +149,7 @@ def check_if_measurement_already_exists(timestamp: str) -> int | None:
 
 def insert_log_import() -> int:
 
-    date, time, _ = split_timestamp(datetime.now().isoformat())
+    date, time, _ = import_from_openmeteo.split_timestamp(datetime.now().isoformat())
     date_id = get_or_create_date_id(date, True)
     time_id = get_or_create_time_id(time, True)
     with engine.connect() as connection:
@@ -163,45 +162,26 @@ def insert_log_import() -> int:
         return import_id
 
 
-def insert_measurement(import_id: int, location_id: int, api_response) -> bool:
-    
-    current_time = datetime.fromtimestamp(api_response.Time(), tz=timezone.utc).isoformat()
-    
-    measurement_id = check_if_measurement_already_exists(current_time)
-    if measurement_id is not None: return None
+def insert_measurement(import_id: int, location_id: int, api_response) -> InsertStatus:
 
-    current_temperature_2m = api_response.Variables(0).Value()
-    current_relative_humidity_2m = api_response.Variables(1).Value()
-    current_apparent_temperature = api_response.Variables(2).Value()
-    current_weather_code = api_response.Variables(3).Value()
-    current_cloud_cover = api_response.Variables(4).Value()
-    current_pressure_msl = api_response.Variables(5).Value()
-    current_precipitation = api_response.Variables(6).Value()
-    current_rain = api_response.Variables(7).Value()
-    current_snowfall = api_response.Variables(8).Value()
-    current_wind_speed_10m = api_response.Variables(9).Value()
-    current_wind_direction_10m = api_response.Variables(10).Value()
-    current_wind_gusts_10m = api_response.Variables(11).Value()
+    measurement_id = check_if_measurement_already_exists(api_response.date, api_response.time)
+    if measurement_id is not None: return InsertStatus.MASUREMENT_ALREADY_EXISTS
 
-    date, time, _ = split_timestamp(current_time)
-    date_id = get_or_create_date_id(date, True)
-    time_id = get_or_create_time_id(time, True)
-    
-    
-    
+    date_id = get_or_create_date_id(api_response.date, True)
+    time_id = get_or_create_time_id(api_response.time, True)
+ 
     with engine.connect() as connection:
         max_index = pd.DataFrame(connection.execute(text("SELECT MAX(measurement_id) FROM measurement;")))
         max_index = max_index.at[0, 'max']
         if max_index is None: max_index = 0
         measurement_id = max_index + 1
         connection.execute(text(f"INSERT INTO measurement (measurement_id, location_id, date_id, time_id, import_id) VALUES ({measurement_id}, {location_id}, {date_id}, {time_id}, {import_id});"))
-        connection.execute(text(f"INSERT INTO temperature (measurement_id, temperature, apparent_temperature) VALUES ({measurement_id}, {current_temperature_2m}, {current_apparent_temperature});"))
-        connection.execute(text(f"INSERT INTO precipitation (measurement_id, relative_humidity, precipitation, rain, snowfall) VALUES ({measurement_id}, {current_relative_humidity_2m}, {current_precipitation}, {current_rain}, {current_snowfall});"))
-        connection.execute(text(f"INSERT INTO wind (measurement_id, wind_speed, wind_direction, wind_gusts) VALUES ({measurement_id}, {current_wind_speed_10m}, {current_wind_direction_10m}, {current_wind_gusts_10m});"))
-        connection.execute(text(f"INSERT INTO weather (measurement_id, surface_pressure, cloud_cover, weather_code_id) VALUES ({measurement_id}, {current_pressure_msl}, {current_cloud_cover}, {current_weather_code});"))
+        connection.execute(text(f"INSERT INTO temperature (measurement_id, temperature, apparent_temperature) VALUES ({measurement_id}, {api_response.current_temperature_2m}, {api_response.current_apparent_temperature});"))
+        connection.execute(text(f"INSERT INTO precipitation (measurement_id, relative_humidity, precipitation, rain, snowfall) VALUES ({measurement_id}, {api_response.current_relative_humidity_2m}, {api_response.current_precipitation}, {api_response.current_rain}, {api_response.current_snowfall});"))
+        connection.execute(text(f"INSERT INTO wind (measurement_id, wind_speed, wind_direction, wind_gusts) VALUES ({measurement_id}, {api_response.current_wind_speed_10m}, {api_response.current_wind_direction_10m}, {api_response.current_wind_gusts_10m});"))
+        connection.execute(text(f"INSERT INTO weather (measurement_id, surface_pressure, cloud_cover, weather_code_id) VALUES ({measurement_id}, {api_response.current_pressure_msl}, {api_response.current_cloud_cover}, {api_response.current_weather_code});"))
         connection.commit()
-
-
+    return InsertStatus.SUCCESS
 
 def insert_api_response_current_time() -> bool:
     locations_position = get_locations_position()
@@ -213,12 +193,13 @@ def insert_api_response_current_time() -> bool:
     }
     responses = import_from_openmeteo.get_responses(params)
 
+    errors = 0
+    successes = 0
     import_id = insert_log_import()
-
     for response, location_id in zip(responses, locations_position[0]):
-        
-        insert_measurement(import_id, location_id, response.Current())
-    
-
+        status = insert_measurement(import_id, location_id, import_from_openmeteo.CurrentMeteoResponse(response))
+        if status == InsertStatus.SUCCESS: successes += 1
+        elif status == InsertStatus.MASUREMENT_ALREADY_EXISTS: errors += 1
+    print(f"   {errors}/{errors+successes} failed")
 
         

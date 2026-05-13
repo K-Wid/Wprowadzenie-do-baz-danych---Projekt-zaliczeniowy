@@ -33,7 +33,8 @@ CREATE TABLE log_import (
 CREATE TABLE timezone (
 	timezone_id 	INTEGER	PRIMARY KEY,
 	full_name		TEXT	NOT NULL,
-	short_name		TEXT	NOT NULL
+	short_name		TEXT	NOT NULL,
+	time_offset		TIME	NOT NULL
 );
 
 CREATE TABLE location_table (

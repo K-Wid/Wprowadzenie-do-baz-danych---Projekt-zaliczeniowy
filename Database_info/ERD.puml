@@ -32,6 +32,7 @@ entity timezone {
     --
     full_name: text
     short_name: text
+    timezone_offset: time
 }
 
 entity location_table {

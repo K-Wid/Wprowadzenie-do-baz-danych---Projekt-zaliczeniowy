@@ -219,3 +219,6 @@ __marimo__/
 
 # Config file
 **/config.bin
+
+**/.cache.sqlite
+
