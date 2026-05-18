@@ -28,8 +28,10 @@ pip install pandas
 ```
 
 #### Obecny stan projektu
-Tabele *timezone* i *error_table* nie są wykorzystywane.
+Tabela *timezone* nie jest wykorzystywana.
 
-Uruchomienie projektu wymaga stworzenia pustej bazy danych w zewnętrznym programie oraz uruchomienia [kodu SQL tworzącego podstawowe tabele](https://github.com/K-Wid/Wprowadzenie-do-baz-danych---Projekt-zaliczeniowy/blob/main/SQL_scripts/creating_tables). W przypadku konieczności przywrócenia bazy danych do stanu początkowego trzeba uruchomić [kod SQL usuwający tabele](https://github.com/K-Wid/Wprowadzenie-do-baz-danych---Projekt-zaliczeniowy/blob/main/SQL_scripts/deleting_tables) i ponownie stworzyć tabele.
+Połączenie tabel *log_import* i *error_table* może ulec zmianie.
 
-Istnieje plik [test.py](https://github.com/K-Wid/Wprowadzenie-do-baz-danych---Projekt-zaliczeniowy/blob/main/Python_code/test.py), który testuje podstawową funkcjonalność programu. **W obecnym stanie kod obsługuje wyłącznie część wyjątków.**
+Uruchomienie projektu wymaga stworzenia pustej bazy danych w zewnętrznym programie oraz uruchomienia funkcji `database.create_all_tables()`. W celu przywrócenia bazy danych do stanu początkowego możliwe jest wywołanie `database.destroy_all_tables()`, a następnie `database.create_all_tables()`.
+
+Istnieje plik [test.py](https://github.com/K-Wid/Wprowadzenie-do-baz-danych---Projekt-zaliczeniowy/blob/main/Python_code/test.py), który testuje podstawową funkcjonalność programu. **W obecnym stanie kod obsługuje wyłącznie wybrane wyjątki.**
