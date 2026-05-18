@@ -10,7 +10,7 @@ from retry_requests import retry
 from import_module import config
 from import_module import import_from_openmeteo
 
-from typing import Tuple, List
+from typing import Tuple, List, Dict
 from datetime import datetime, timezone, timedelta
 from enum import Enum
 
@@ -20,6 +20,43 @@ global engine
 class InsertStatus(Enum):
     SUCCESS = 0
     MASUREMENT_ALREADY_EXISTS = 1
+
+
+class Location:
+    def __init__(self, name: str, latitude: float, longitude: float, elevation: float, id: int | None = None):
+        self.id = id
+        self.name = name
+        self.latitude = latitude
+        self.longitude = longitude
+        self.elevation = elevation
+
+
+def destroy_all_tables() -> None:
+    """
+    # This function deletes ALL TABLES IN DATABASE.
+
+    Use wisely.
+    """
+    harbinger_of_destruction = ""
+    with open("../SQL_scripts/deleting_tables", 'r') as file:
+        harbinger_of_destruction = file.read()
+    with engine.connect() as connection:
+            connection.execute(text(harbinger_of_destruction))
+            connection.commit()
+
+
+def create_all_tables() -> None:
+    """
+    Function that creates tables in **EMPTY** database.
+
+    If database contains tables included in *SQL_scripts/creating_tables* file, database will throw an exception.
+    """
+    the_joy_of_creation = ""
+    with open("../SQL_scripts/creating_tables", 'r') as file:
+        the_joy_of_creation = file.read()
+    with engine.connect() as connection:
+            connection.execute(text(the_joy_of_creation))
+            connection.commit()
 
 
 def setup_engine(url: str):
@@ -35,15 +72,15 @@ def setup_engine(url: str):
     engine = create_engine(url)
 
 
-def add_location(latitude: float, longitude: float, elevation: float, name: str) -> bool:
+def add_location(location: Location) -> bool:
     """
     Adds location to database. Return True on successful insertion, return False if location already exists in database.
     """
 
     params = {
-        "latitude": latitude,
-        "longitude": longitude,
-        "elevation": elevation
+        "latitude": location.latitude,
+        "longitude": location.longitude,
+        "elevation": location.elevation
     }
     responses = import_from_openmeteo.get_responses(params)
     response = responses[0]
@@ -57,7 +94,7 @@ def add_location(latitude: float, longitude: float, elevation: float, name: str)
         max_index = pd.DataFrame(connection.execute(text("SELECT MAX(location_table.location_id) FROM location_table;")))
         max_index = max_index.at[0, 'max']
         if max_index is None: max_index = 0
-        connection.execute(text(f"INSERT INTO location_table (location_id, latitude, longitude, elevation, name) VALUES ({max_index+1}, {latitude}, {longitude}, {elevation}, '{name}');"))
+        connection.execute(text(f"INSERT INTO location_table (location_id, latitude, longitude, elevation, name) VALUES ({max_index+1}, {latitude}, {longitude}, {elevation}, '{location.name}');"))
         connection.commit()
     return True
 
@@ -69,15 +106,15 @@ def get_dataframe_from_sql(sql_command: str) -> pd.DataFrame:
         return df
 
 
-def get_locations_position() -> Tuple[List[int], List[float], List[float]]:
+def get_all_locations() -> List[Location]:
     """
     Gets all locations from database.
-
-    :return: Tuple of lists like ([location_ids], [latitudes], [lingitudes], [elevations])
-    :rtype: Tuple[List[int], List[float], List[float]]
     """
-    df = get_dataframe_from_sql("SELECT location_id, latitude, longitude, elevation FROM location_table;")
-    return (df['location_id'].values.tolist(), df['latitude'].values.tolist(), df['longitude'].values.tolist(), df['elevation'].values.tolist())
+    df = get_dataframe_from_sql("SELECT location_id, latitude, longitude, elevation, name FROM location_table;")
+    all_locations = []
+    for name, line in df.iterrows():
+        all_locations.append(Location(line["name"], line["latitude"], line["longitude"], line["elevation"], line["location_id"]))
+    return all_locations
 
 
 def get_or_create_date_id(date: str, create_new_entry: bool = False) -> int | None:
@@ -126,7 +163,7 @@ def get_or_create_time_id(time: str, create_new_entry: bool = False) -> int | No
         return df.at[0, "time_id"]
 
 
-def check_if_measurement_already_exists(date: str, time: str) -> int | None:
+def check_if_measurement_already_exists(date: str, time: str, location_id: int) -> int | None:
     """
     Function checks if measurement entry with given timestamp exists in database. Returns None if not found, returns measurement_id of measurement with specified timestamp.
     
@@ -142,13 +179,19 @@ def check_if_measurement_already_exists(date: str, time: str) -> int | None:
     date_id = get_or_create_date_id(date, False)
     time_id = get_or_create_time_id(time, False)
     if (date_id is None) or (time_id is None): return None
-    df = get_dataframe_from_sql(f"SELECT measurement_id FROM measurement WHERE date_id = {date_id} AND time_id = {time_id};")
+    df = get_dataframe_from_sql(f"SELECT measurement_id FROM measurement WHERE date_id = {date_id} AND time_id = {time_id} AND location_id = {location_id};")
     if df.empty: return None
     return df.at[0, "measurement_id"]
 
 
-def insert_log_import() -> int:
+def update_error_code(import_id: int, insert_status: InsertStatus) -> None:
+    if insert_status == InsertStatus.SUCCESS: return
+    with engine.connect() as connection:
+        connection.execute(text(f"UPDATE log_import SET error_id = {1} WHERE log_import.import_id = {import_id};"))
+        connection.commit()
 
+
+def insert_log_import() -> int:
     date, time, _ = import_from_openmeteo.split_timestamp(datetime.now().isoformat())
     date_id = get_or_create_date_id(date, True)
     time_id = get_or_create_time_id(time, True)
@@ -163,8 +206,7 @@ def insert_log_import() -> int:
 
 
 def insert_measurement(import_id: int, location_id: int, api_response) -> InsertStatus:
-
-    measurement_id = check_if_measurement_already_exists(api_response.date, api_response.time)
+    measurement_id = check_if_measurement_already_exists(api_response.date, api_response.time, location_id)
     if measurement_id is not None: return InsertStatus.MASUREMENT_ALREADY_EXISTS
 
     date_id = get_or_create_date_id(api_response.date, True)
@@ -183,23 +225,21 @@ def insert_measurement(import_id: int, location_id: int, api_response) -> Insert
         connection.commit()
     return InsertStatus.SUCCESS
 
-def insert_api_response_current_time() -> bool:
-    locations_position = get_locations_position()
+def insert_api_response_current_time(locations: List[Location]) -> Dict[int, Tuple[str, InsertStatus]]:
     params = {
-        "latitude": locations_position[1],
-        "longitude": locations_position[2],
-        "elevation": locations_position[3],
+        "latitude": [l.latitude for l in locations],
+        "longitude": [l.longitude for l in locations],
+        "elevation": [l.elevation for l in locations],
         "current": ["temperature_2m", "relative_humidity_2m", "apparent_temperature", "weather_code", "cloud_cover", "pressure_msl", "precipitation", "rain", "snowfall", "wind_speed_10m", "wind_direction_10m", "wind_gusts_10m"],
     }
     responses = import_from_openmeteo.get_responses(params)
 
-    errors = 0
-    successes = 0
+    result_dict = {}
     import_id = insert_log_import()
-    for response, location_id in zip(responses, locations_position[0]):
-        status = insert_measurement(import_id, location_id, import_from_openmeteo.CurrentMeteoResponse(response))
-        if status == InsertStatus.SUCCESS: successes += 1
-        elif status == InsertStatus.MASUREMENT_ALREADY_EXISTS: errors += 1
-    print(f"   {errors}/{errors+successes} failed")
+    for response, location in zip(responses, locations):
+        status = insert_measurement(import_id, location.id, import_from_openmeteo.CurrentMeteoResponse(response))
+        update_error_code(import_id, status)
+        result_dict[location.id] = (location, status)
+    return result_dict
 
         
