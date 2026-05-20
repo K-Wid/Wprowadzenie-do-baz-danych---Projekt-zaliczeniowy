@@ -192,7 +192,8 @@ def update_error_code(import_id: int, insert_status: InsertStatus) -> None:
 
 
 def insert_log_import() -> int:
-    date, time, _ = import_from_openmeteo.split_timestamp(datetime.now().isoformat())
+    date = str(datetime.now().date())
+    time = str(datetime.now().time())
     date_id = get_or_create_date_id(date, True)
     time_id = get_or_create_time_id(time, True)
     with engine.connect() as connection:
@@ -205,7 +206,7 @@ def insert_log_import() -> int:
         return import_id
 
 
-def insert_measurement(import_id: int, location_id: int, api_response) -> InsertStatus:
+def insert_measurement_single(import_id: int, location_id: int, api_response: import_from_openmeteo.MeteoResponse) -> InsertStatus:
     measurement_id = check_if_measurement_already_exists(api_response.date, api_response.time, location_id)
     if measurement_id is not None: return InsertStatus.MASUREMENT_ALREADY_EXISTS
 
@@ -218,12 +219,21 @@ def insert_measurement(import_id: int, location_id: int, api_response) -> Insert
         if max_index is None: max_index = 0
         measurement_id = max_index + 1
         connection.execute(text(f"INSERT INTO measurement (measurement_id, location_id, date_id, time_id, import_id) VALUES ({measurement_id}, {location_id}, {date_id}, {time_id}, {import_id});"))
-        connection.execute(text(f"INSERT INTO temperature (measurement_id, temperature, apparent_temperature) VALUES ({measurement_id}, {api_response.current_temperature_2m}, {api_response.current_apparent_temperature});"))
-        connection.execute(text(f"INSERT INTO precipitation (measurement_id, relative_humidity, precipitation, rain, snowfall) VALUES ({measurement_id}, {api_response.current_relative_humidity_2m}, {api_response.current_precipitation}, {api_response.current_rain}, {api_response.current_snowfall});"))
-        connection.execute(text(f"INSERT INTO wind (measurement_id, wind_speed, wind_direction, wind_gusts) VALUES ({measurement_id}, {api_response.current_wind_speed_10m}, {api_response.current_wind_direction_10m}, {api_response.current_wind_gusts_10m});"))
-        connection.execute(text(f"INSERT INTO weather (measurement_id, surface_pressure, cloud_cover, weather_code_id) VALUES ({measurement_id}, {api_response.current_pressure_msl}, {api_response.current_cloud_cover}, {api_response.current_weather_code});"))
+        connection.execute(text(f"INSERT INTO temperature (measurement_id, temperature, apparent_temperature) VALUES ({measurement_id}, {api_response.temperature_2m}, {api_response.apparent_temperature});"))
+        connection.execute(text(f"INSERT INTO precipitation (measurement_id, relative_humidity, precipitation, rain, snowfall) VALUES ({measurement_id}, {api_response.relative_humidity_2m}, {api_response.precipitation}, {api_response.rain}, {api_response.snowfall});"))
+        connection.execute(text(f"INSERT INTO wind (measurement_id, wind_speed, wind_direction, wind_gusts) VALUES ({measurement_id}, {api_response.wind_speed_10m}, {api_response.wind_direction_10m}, {api_response.wind_gusts_10m});"))
+        connection.execute(text(f"INSERT INTO weather (measurement_id, surface_pressure, cloud_cover, weather_code_id) VALUES ({measurement_id}, {api_response.pressure_msl}, {api_response.cloud_cover}, {api_response.weather_code});"))
         connection.commit()
     return InsertStatus.SUCCESS
+
+
+def insert_measurement_multiple(import_id: int, location_id: int, api_response: import_from_openmeteo.MultipleMeteoResponses) -> Dict[Tuple[str, str], InsertStatus]:
+    status_dict = {}
+    for response in api_response.iterator():
+        status = insert_measurement_single(import_id, location_id, response)
+        status_dict[(response.date, response.time)] = status
+    return status_dict
+
 
 def insert_api_response_current_time(locations: List[Location]) -> Dict[int, Tuple[str, InsertStatus]]:
     params = {
@@ -237,9 +247,29 @@ def insert_api_response_current_time(locations: List[Location]) -> Dict[int, Tup
     result_dict = {}
     import_id = insert_log_import()
     for response, location in zip(responses, locations):
-        status = insert_measurement(import_id, location.id, import_from_openmeteo.CurrentMeteoResponse(response))
+        status = insert_measurement_single(import_id, location.id, import_from_openmeteo.MeteoResponse(response.Current()))
         update_error_code(import_id, status)
         result_dict[location.id] = (location, status)
     return result_dict
 
-        
+
+def insert_api_response_hourly(locations: List[Location], start_date: str, end_date: str):
+    params = {
+        "latitude": [l.latitude for l in locations],
+        "longitude": [l.longitude for l in locations],
+        "elevation": [l.elevation for l in locations],
+        "hourly": ["temperature_2m", "relative_humidity_2m", "apparent_temperature", "weather_code", "cloud_cover", "pressure_msl", "precipitation", "rain", "snowfall", "wind_speed_10m", "wind_direction_10m", "wind_gusts_10m"],
+        "start_date": start_date,
+	    "end_date": end_date,
+    }
+    responses = import_from_openmeteo.get_responses(params)
+
+    result_dict = {}
+    import_id = insert_log_import()
+    for response, location in zip(responses, locations):
+        status_dict = insert_measurement_multiple(import_id, location.id, import_from_openmeteo.MultipleMeteoResponses(response))
+        final_status = InsertStatus.MASUREMENT_ALREADY_EXISTS if InsertStatus.MASUREMENT_ALREADY_EXISTS in status_dict.values() else InsertStatus.SUCCESS
+        update_error_code(import_id, final_status)
+        result_dict[location.id] = (location, final_status)
+    return result_dict
+

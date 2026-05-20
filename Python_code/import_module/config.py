@@ -12,9 +12,7 @@ class ConfigStatus(Enum):
     NO_CONFIG_FILE = 1
     CONFIG_FILE_EXISTS = 2
     INCORRECT_URL_SYNTAX = 3
-
-
-
+    
 
 def save_config(database_url: URL, overwrite: bool = False) -> ConfigStatus:
     """
