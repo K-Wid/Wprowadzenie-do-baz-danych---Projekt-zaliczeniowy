@@ -61,14 +61,14 @@ def create_all_tables() -> None:
             connection.commit()
 
 
-def setup_engine(url: str):
+def setup_engine(url: URL):
     """
     Contains *sqlalchemy.create_engine* function. 
 
     # Has to be run before any other function in module!
     
     :param url: URL of database;
-    :type url: str
+    :type url: sqlalchemy.URL
     """
     global engine
     engine = create_engine(url)
@@ -76,9 +76,13 @@ def setup_engine(url: str):
 
 def add_location(location: Location) -> bool:
     """
-    Adds location to database. Return True on successful insertion, return False if location already exists in database.
+    Adds location to database. Geographical coordinates are rounded to nearest available in *OpenMeteo* simulation grid.
+    
+    :param location: Location to add. `Location.id` field is disregarded (can be None).
+    :type location: database.Location
+    :return: Returns **False** if location already exists and **True** if location is added successfully.
+    :rtype: bool
     """
-
     params = {
         "latitude": location.latitude,
         "longitude": location.longitude,
@@ -99,21 +103,46 @@ def add_location(location: Location) -> bool:
 
 
 def get_dataframe_from_sql(sql_command: str) -> pd.DataFrame:
+    """
+    Sends given querry to database and converts response to pandas dataframe.
+    
+    :param sql_command: `SELECT` type SQL command
+    :type sql_command: str
+    :return: Database response
+    :rtype: DataFrame
+    """
     with engine.connect() as connection:
         result = connection.execute(text(sql_command))
         df = pd.DataFrame(result)
         return df
 
 
-def get_all_locations() -> List[Location]:
+def get_locations(filter: str|None=None) -> List[Location]:
     """
-    Gets all locations from database.
+    Function returns locations from database.
+
+    Internally function calls:
+    
+    `
+    SELECT location_id, latitude, longitude, elevation, name 
+    FROM location_table
+    `
+    
+    :param filter: Text added to the end of command above. Allows for `JOIN` and `WHERE`.
+    :type filter: str | None
+    :return: List of locations returned from database.
+    :rtype: List[database.Location]
     """
-    df = get_dataframe_from_sql("SELECT location_id, latitude, longitude, elevation, name FROM location_table;")
-    all_locations = []
+    command = "SELECT location_id, latitude, longitude, elevation, name FROM location_table"
+    if filter is None:
+        command += ";"
+    else:
+        command += filter + " ;"
+    df = get_dataframe_from_sql(command)
+    locations = []
     for name, line in df.iterrows():
-        all_locations.append(Location(line["name"], line["latitude"], line["longitude"], line["elevation"], line["location_id"]))
-    return all_locations
+        locations.append(Location(line["name"], line["latitude"], line["longitude"], line["elevation"], line["location_id"]))
+    return locations
 
 
 def get_or_create_date_id(date: str, create_new_entry: bool = False) -> int | None:
@@ -143,8 +172,10 @@ def get_or_create_time_id(time: str, create_new_entry: bool = False) -> int | No
 
     :param time: time in format "HH-MM-SS"
     :type time: str
-    :param create_new_entry: If **False** - When time isn't in database -> return None.     If **True** - When time isn't in database -> Create new time in database and return its time_id
+    :param create_new_entry: When time is not found in database **True** allows for creation of new entry in database, **False** will cause to return *None* 
     :type create_new_entry: bool
+    :return: Found or created *time_id*; None unable to create and time not found in database.
+    :rtype: int | None
     """
     df = get_dataframe_from_sql(f"SELECT time_table.time_id FROM time_table WHERE time_table.time_value = '{time}';")
     if df.empty:
@@ -187,8 +218,17 @@ def update_error_code(import_id: int, insert_status: InsertStatus) -> None:
 
 
 def insert_log_import() -> int:
-    date = str(datetime.now().date())
-    time = str(datetime.now().time())
+    """
+    Function creates new entry in *log_import* table in database.
+
+    New entry contains only current date and time.
+    
+    :return: *import_id* of freshly created entry.
+    :rtype: int
+    """
+    now = datetime.now()
+    date = str(now.date())
+    time = now.strftime("%H:%M:%S")
     date_id = get_or_create_date_id(date, True)
     time_id = get_or_create_time_id(time, True)
     with engine.connect() as connection:
@@ -258,7 +298,7 @@ def insert_api_response_hourly(locations: List[Location], start_date: str, end_d
     result_dict = {}
     import_id = insert_log_import()
     for response, location in zip(responses, locations):
-        status_dict = insert_measurement_multiple(import_id, location.id, import_from_openmeteo.MultipleMeteoResponses(response))
+        status_dict = insert_measurement_multiple(import_id, location.id, import_from_openmeteo.MultipleMeteoResponses(response.Hourly()))
         final_status = InsertStatus.MASUREMENT_ALREADY_EXISTS if InsertStatus.MASUREMENT_ALREADY_EXISTS in status_dict.values() else InsertStatus.SUCCESS
         update_error_code(import_id, final_status)
         result_dict[location.id] = (location, final_status)

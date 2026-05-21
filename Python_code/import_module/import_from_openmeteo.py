@@ -9,6 +9,34 @@ from retry_requests import retry
 from typing import Tuple, Any
 
 class MeteoResponse:
+    """
+    Class containing OpenMeteo response data in more intuitive way.
+
+    ### Methods:
+
+    #### __init__(self, api_response, *< specific parameters >*)
+        If *api_response* parameter is None then new object is created from *< specific parameters >*. 
+        If *api_response* is a response object from OpenMeteo (like one returned from *get_responses* function), then object is created from that response and *< specific parameters >* are disregarded.
+
+    ### Attributes:
+
+    | Attribute            | Value range |       Unit |
+    |----------------------|:-----------:|-----------:|
+    | temperature_2m       |      -      |         °C |
+    | relative_humidity_2m |   0 - 100   |          % |
+    | apparent_temperature | -           |         °C |
+    | weather_code         | 0 - 99      |          - |
+    | cloud_cover          | 0 - 100     | %          |
+    | pressure_msl         | -           | hPa        |
+    | precipitation        | -           | mm         |
+    | rain                 | -           | mm         |
+    | snowfall             | -           | cm         |
+    | wind_speed_10m       | -           | km/h       |
+    | wind_direction_10m   | -           | °          |
+    | wind_gusts_10m       | -           | km/h       |
+    | date                 | -           | YYYY-MM-DD |
+    | time                 | -           | HH:MM:SS   |
+    """
     def __init__(self, 
                 api_response = Any | None,
                 temperature_2m: float = -1, 
@@ -60,8 +88,37 @@ class MeteoResponse:
         
 
 class MultipleMeteoResponses:
+    """
+    Class containing multiple OpenMeteo responses. 
+
+    Attributes are in *numpy.ndarray* format - each containing one parameter of all measurements.
+    
+    Example:
+    |          Index   |  0  |  1  |  2  |  3  |  3  |   |
+    |-----------------:|:---:|:---:|:---:|:---:|:---:|:--|
+    |  Temperature = [ | 22, | 25, | 30, | 27, | 15, | ] |
+    | weather_code = [ |  0, |  1, |  0, | 45, |  3, | ] |
+    
+    First measurement occupies index 0, second - 1 and so on.
+
+    ### Methods:
+    #### __init__(self, response)
+        
+        Function receives OpenMeteo response with multiple measurements (like Hourly() and Daily())
+
+    #### __getitem__(self, index: int) -> MeteoResponse
+
+        Function allows for array-like indexing of individual measurements in object.
+
+    #### iterator(self)
+
+        Function allows for extraction of individual measurements in `for` loop.
+
+
+    ### Attributes
+    Attribures are analogous to the **MeteoResponse** class.
+    """
     def __init__(self, response):
-        response = response.Hourly()
         self.temperature_2m = response.Variables(0).ValuesAsNumpy()
         self.relative_humidity_2m = response.Variables(1).ValuesAsNumpy()
         self.apparent_temperature = response.Variables(2).ValuesAsNumpy()
@@ -115,27 +172,22 @@ def get_responses(params):
     :params params: Dictionary of parameters.
     :type params: Dict
 
+    ```
     params = {
-    
         "latitude": float
-
         "longitude": float
-
         "elevation": float
-
         "current": [param names: str]
-
         "minutely_15": [param names: str]
-
         "hourly": [param names: str]
-
         "daily": [param names: str]
-
         "start_date": str [YYY-MM-DD]
-
         "end_date": str [YYY-MM-DD]
-
     }
+    ```
+
+    :return: OpenMeteo API response
+    :rtype: Openmeteo Response
     """
     cache_session = requests_cache.CachedSession('.cache', expire_after = 3600)
     retry_session = retry(cache_session, retries = 5, backoff_factor = 0.2)

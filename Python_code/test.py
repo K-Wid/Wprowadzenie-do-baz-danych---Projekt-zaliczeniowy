@@ -30,11 +30,11 @@ database.setup_engine(db_url)
 database.add_location(database.Location("Bermuda triangle", 25, 70, 20))
 database.add_location(database.Location("Sth", 75, 20, 20))
 
-e = database.insert_api_response_current_time(database.get_all_locations())
+e = database.insert_api_response_current_time(database.get_locations())
 for id, (location, status) in e.items():
     print(id, location.name, status)
 
-e = database.insert_api_response_hourly(database.get_all_locations(), "2026-05-13", "2026-05-27")
+e = database.insert_api_response_hourly(database.get_locations(), "2026-05-13", "2026-05-27")
 for id, (location, status) in e.items():
     print(id, location.name, status)
 
