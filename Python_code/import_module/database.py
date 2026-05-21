@@ -37,8 +37,9 @@ def destroy_all_tables() -> None:
 
     Use wisely.
     """
+    p = __file__.removesuffix("Python_code/import_module/database.py")+"SQL_scripts/deleting_tables"
     harbinger_of_destruction = ""
-    with open("../SQL_scripts/deleting_tables", 'r') as file:
+    with open(p, 'r') as file:
         harbinger_of_destruction = file.read()
     with engine.connect() as connection:
             connection.execute(text(harbinger_of_destruction))
@@ -51,8 +52,9 @@ def create_all_tables() -> None:
 
     If database contains tables included in *SQL_scripts/creating_tables* file, database will throw an exception.
     """
+    p = __file__.removesuffix("Python_code/import_module/database.py")+"SQL_scripts/creating_tables"
     the_joy_of_creation = ""
-    with open("../SQL_scripts/creating_tables", 'r') as file:
+    with open(p, 'r') as file:
         the_joy_of_creation = file.read()
     with engine.connect() as connection:
             connection.execute(text(the_joy_of_creation))

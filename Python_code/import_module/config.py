@@ -26,12 +26,13 @@ def save_config(database_url: URL, overwrite: bool = False) -> ConfigStatus:
 
     :return config.ConfigStatus: Returns SUCCESS if everything went right, CONFIG_FILE_EXISTS if config file exists and *overwrite* = False.
     """
-    if os.path.exists("./config.bin"):
+    p = __file__.removesuffix("import_module/config.py")+"config.bin"
+    if os.path.exists(p):
         if not overwrite: return ConfigStatus.CONFIG_FILE_EXISTS
-        with open("./config.bin", 'wb') as file:
+        with open(p, 'wb') as file:
             file.write(database_url.render_as_string(False).encode())
     else:
-        with open("./config.bin", 'xb') as file:
+        with open(p, 'xb') as file:
             file.write(database_url.render_as_string(False).encode())
     return ConfigStatus.SUCCESS
 
@@ -48,9 +49,10 @@ def read_config() -> URL | ConfigStatus:
     :return: Returns url from config file or ConfigStatus if an error is encountered.
     :rtype: sqlalchely.URL | config.ConfigStatus
     """
-    if not os.path.exists("./config.bin"): return None
+    p = __file__.removesuffix("import_module/config.py")+"config.bin"
+    if not os.path.exists(p): return None
     database_url = ""
-    with open("./config.bin", 'rb') as file:
+    with open(p, 'rb') as file:
         database_url = file.readline().decode()
     drivername, s = database_url.split("://", 1)
     username, s = s.split(":", 1)
