@@ -2,12 +2,12 @@
 -- Creating tables
 
 CREATE TABLE date_table (
-	date_id			INTEGER	PRIMARY KEY,
+	date_id			SERIAL	PRIMARY KEY,
 	date_value		DATE	NOT NULL
 );
 
 CREATE TABLE time_table (
-	time_id			INTEGER PRIMARY KEY,
+	time_id			SERIAL PRIMARY KEY,
 	time_value		TIME	NOT NULL
 );
 
@@ -17,7 +17,7 @@ CREATE TABLE error_table (
 );
 
 CREATE TABLE log_import (
-	import_id		INTEGER	PRIMARY KEY,
+	import_id		SERIAL	PRIMARY KEY,
 	date_id			INTEGER	NOT NULL,
 	time_id			INTEGER	NOT NULL,
 	error_id		INTEGER NULL		DEFAULT NULL,
@@ -31,14 +31,14 @@ CREATE TABLE log_import (
 );
 
 CREATE TABLE timezone (
-	timezone_id 	INTEGER	PRIMARY KEY,
+	timezone_id 	SERIAL	PRIMARY KEY,
 	full_name		TEXT	NOT NULL,
 	short_name		TEXT	NOT NULL,
 	time_offset		TIME	NOT NULL
 );
 
 CREATE TABLE location_table (
-	location_id		INTEGER	PRIMARY KEY,
+	location_id		SERIAL	PRIMARY KEY,
 	latitude		FLOAT	NOT NULL,
 	longitude		FLOAT	NOT NULL,
 	elevation		FLOAT	NOT NULL,
@@ -49,7 +49,7 @@ CREATE TABLE location_table (
 );
 
 CREATE TABLE measurement (
-	measurement_id	INTEGER	PRIMARY KEY,
+	measurement_id	SERIAL	PRIMARY KEY,
 	location_id		INTEGER	NOT NULL,
 	date_id			INTEGER NOT NULL,
 	time_id			INTEGER NOT NULL,

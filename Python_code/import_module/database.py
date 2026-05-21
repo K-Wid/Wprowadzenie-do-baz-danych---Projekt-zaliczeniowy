@@ -93,10 +93,7 @@ def add_location(location: Location) -> bool:
     with engine.connect() as connection:
         same_location = pd.DataFrame(connection.execute(text(f"SELECT 1 FROM location_table WHERE location_table.latitude = {latitude} AND location_table.longitude = {longitude} AND location_table.elevation = {elevation};")))
         if not same_location.empty: return False
-        max_index = pd.DataFrame(connection.execute(text("SELECT MAX(location_table.location_id) FROM location_table;")))
-        max_index = max_index.at[0, 'max']
-        if max_index is None: max_index = 0
-        connection.execute(text(f"INSERT INTO location_table (location_id, latitude, longitude, elevation, name) VALUES ({max_index+1}, {latitude}, {longitude}, {elevation}, '{location.name}');"))
+        connection.execute(text(f"INSERT INTO location_table (latitude, longitude, elevation, name) VALUES ({latitude}, {longitude}, {elevation}, '{location.name}');"))
         connection.commit()
     return True
 
@@ -132,12 +129,10 @@ def get_or_create_date_id(date: str, create_new_entry: bool = False) -> int | No
     if df.empty:
         if not create_new_entry: return None
         with engine.connect() as connection:
-            max_index = pd.DataFrame(connection.execute(text("SELECT MAX(date_table.date_id) FROM date_table;")))
-            max_index = max_index.at[0, 'max']
-            if max_index is None: max_index = 0
-            connection.execute(text(f"INSERT INTO date_table (date_id, date_value) VALUES ({max_index+1}, '{date}');"))
+            connection.execute(text(f"INSERT INTO date_table (date_value) VALUES ('{date}');"))
             connection.commit()
-        return max_index+1
+        new_index = get_dataframe_from_sql("SELECT currval(pg_get_serial_sequence('date_table', 'date_id')) AS new_id;").at[0, 'new_id']
+        return new_index
     else:
         return df.at[0, "date_id"]
 
@@ -155,12 +150,10 @@ def get_or_create_time_id(time: str, create_new_entry: bool = False) -> int | No
     if df.empty:
         if not create_new_entry: return None
         with engine.connect() as connection:
-            max_index = pd.DataFrame(connection.execute(text("SELECT MAX(time_table.time_id) FROM time_table;")))
-            max_index = max_index.at[0, 'max']
-            if max_index is None: max_index = 0
-            connection.execute(text(f"INSERT INTO time_table (time_id, time_value) VALUES ({max_index+1}, '{time}');"))
+            connection.execute(text(f"INSERT INTO time_table (time_value) VALUES ('{time}');"))
             connection.commit()
-        return max_index+1
+        new_index = get_dataframe_from_sql("SELECT currval(pg_get_serial_sequence('time_table', 'time_id')) AS new_id;").at[0, 'new_id']
+        return new_index
     else:
         return df.at[0, "time_id"]
 
@@ -199,13 +192,10 @@ def insert_log_import() -> int:
     date_id = get_or_create_date_id(date, True)
     time_id = get_or_create_time_id(time, True)
     with engine.connect() as connection:
-        df = pd.DataFrame(connection.execute(text("SELECT MAX(import_id) FROM log_import;")))
-        import_id = df.at[0, 'max']
-        if import_id is None: import_id = 0
-        import_id += 1
-        connection.execute(text(f"INSERT INTO log_import (import_id, date_id, time_id) VALUES ({import_id}, {date_id}, {time_id});"))
+        connection.execute(text(f"INSERT INTO log_import (date_id, time_id) VALUES ({date_id}, {time_id});"))
         connection.commit()
-        return import_id
+    new_index = get_dataframe_from_sql("SELECT currval(pg_get_serial_sequence('log_import', 'import_id')) AS new_id;").at[0, 'new_id']
+    return new_index
 
 
 def insert_measurement_single(import_id: int, location_id: int, api_response: import_from_openmeteo.MeteoResponse) -> InsertStatus:
@@ -216,11 +206,10 @@ def insert_measurement_single(import_id: int, location_id: int, api_response: im
     time_id = get_or_create_time_id(api_response.time, True)
  
     with engine.connect() as connection:
-        max_index = pd.DataFrame(connection.execute(text("SELECT MAX(measurement_id) FROM measurement;")))
-        max_index = max_index.at[0, 'max']
-        if max_index is None: max_index = 0
-        measurement_id = max_index + 1
-        connection.execute(text(f"INSERT INTO measurement (measurement_id, location_id, date_id, time_id, import_id) VALUES ({measurement_id}, {location_id}, {date_id}, {time_id}, {import_id});"))
+        connection.execute(text(f"INSERT INTO measurement (location_id, date_id, time_id, import_id) VALUES ({location_id}, {date_id}, {time_id}, {import_id});"))
+        connection.commit()
+    measurement_id = get_dataframe_from_sql("SELECT currval(pg_get_serial_sequence('measurement', 'measurement_id')) AS new_id;").at[0, 'new_id']
+    with engine.connect() as connection:
         connection.execute(text(f"INSERT INTO temperature (measurement_id, temperature, apparent_temperature) VALUES ({measurement_id}, {api_response.temperature_2m}, {api_response.apparent_temperature});"))
         connection.execute(text(f"INSERT INTO precipitation (measurement_id, relative_humidity, precipitation, rain, snowfall) VALUES ({measurement_id}, {api_response.relative_humidity_2m}, {api_response.precipitation}, {api_response.rain}, {api_response.snowfall});"))
         connection.execute(text(f"INSERT INTO wind (measurement_id, wind_speed, wind_direction, wind_gusts) VALUES ({measurement_id}, {api_response.wind_speed_10m}, {api_response.wind_direction_10m}, {api_response.wind_gusts_10m});"))
