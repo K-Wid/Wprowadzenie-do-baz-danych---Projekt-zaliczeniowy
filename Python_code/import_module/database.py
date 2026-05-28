@@ -18,8 +18,13 @@ global engine
 
 
 class InsertStatus(Enum):
+    """
+    ## ELEMENTS HAVE TO HAVE VALUES IDENTICAL WITH creating_tables.sql FILE.
+    """
     SUCCESS = 0
     MASUREMENT_ALREADY_EXISTS = 1
+    ALL_MEASUREMENTS_EXISTED = 2
+    SOME_MEASUREMENTS_EXISTED = 3
 
 
 class Location:
@@ -211,9 +216,8 @@ def check_if_measurement_already_exists(date: str, time: str, location_id: int) 
 
 
 def update_error_code(import_id: int, insert_status: InsertStatus) -> None:
-    if insert_status == InsertStatus.SUCCESS: return
     with engine.connect() as connection:
-        connection.execute(text(f"UPDATE log_import SET error_id = {1} WHERE log_import.import_id = {import_id};"))
+        connection.execute(text(f"UPDATE log_import SET error_id = {insert_status.value} WHERE log_import.import_id = {import_id};"))
         connection.commit()
 
 
@@ -299,7 +303,12 @@ def insert_api_response_hourly(locations: List[Location], start_date: str, end_d
     import_id = insert_log_import()
     for response, location in zip(responses, locations):
         status_dict = insert_measurement_multiple(import_id, location.id, import_from_openmeteo.MultipleMeteoResponses(response.Hourly()))
-        final_status = InsertStatus.MASUREMENT_ALREADY_EXISTS if InsertStatus.MASUREMENT_ALREADY_EXISTS in status_dict.values() else InsertStatus.SUCCESS
+        final_status = InsertStatus.SUCCESS
+        if InsertStatus.MASUREMENT_ALREADY_EXISTS in status_dict.values():
+            if InsertStatus.SUCCESS not in status_dict.values():
+                final_status = InsertStatus.ALL_MEASUREMENTS_EXISTED
+            else:
+                final_status = InsertStatus.SOME_MEASUREMENTS_EXISTED
         update_error_code(import_id, final_status)
         result_dict[location.id] = (location, final_status)
     return result_dict

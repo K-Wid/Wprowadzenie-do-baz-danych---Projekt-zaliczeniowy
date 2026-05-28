@@ -32,11 +32,11 @@ database.add_location(database.Location("Sth", 75, 20, 20))
 
 e = database.insert_api_response_current_time(database.get_locations())
 for id, (location, status) in e.items():
-    print(id, location.name, status)
+    print(id, location.name, status.name, sep='\t')
 
 e = database.insert_api_response_hourly(database.get_locations(), "2026-05-15", "2026-05-30")
 for id, (location, status) in e.items():
-    print(id, location.name, status)
+    print(id, location.name, status.name, sep='\t')
 
 df = database.get_dataframe_from_sql("""
 SELECT date_table.date_value AS date, time_table.time_value AS time, location_table.name AS location, weather_code.description AS weather

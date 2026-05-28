@@ -184,4 +184,7 @@ INSERT INTO weather_code (weather_code_id, description)
 			(99, 'Thunderstorm with heavy hail');
 
 INSERT INTO error_table (error_id, reason)
-	VALUES (1, 'InsertError.MEASUREMENT_ALREADY_EXISTS');
+	VALUES 	(0, 'SUCCESS'),
+			(1, 'MEASUREMENT_ALREADY_EXISTS'),
+			(2, 'MEASUREMENTS_EXISTED'),
+			(3, 'SOME_MEASUREMENTS_EXISTED');
