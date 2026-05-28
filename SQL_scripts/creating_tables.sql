@@ -186,5 +186,5 @@ INSERT INTO weather_code (weather_code_id, description)
 INSERT INTO error_table (error_id, reason)
 	VALUES 	(0, 'SUCCESS'),
 			(1, 'MEASUREMENT_ALREADY_EXISTS'),
-			(2, 'MEASUREMENTS_EXISTED'),
+			(2, 'ALL_MEASUREMENTS_EXISTED'),
 			(3, 'SOME_MEASUREMENTS_EXISTED');
