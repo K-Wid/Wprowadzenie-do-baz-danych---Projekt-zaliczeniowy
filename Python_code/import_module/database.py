@@ -37,7 +37,7 @@ def destroy_all_tables() -> None:
 
     Use wisely.
     """
-    p = __file__.removesuffix("Python_code/import_module/database.py")+"SQL_scripts/deleting_tables"
+    p = __file__.removesuffix("Python_code/import_module/database.py")+"SQL_scripts/deleting_tables.sql"
     harbinger_of_destruction = ""
     with open(p, 'r') as file:
         harbinger_of_destruction = file.read()
@@ -50,9 +50,9 @@ def create_all_tables() -> None:
     """
     Function that creates tables in **EMPTY** database.
 
-    If database contains tables included in *SQL_scripts/creating_tables* file, database will throw an exception.
+    If database contains tables included in *SQL_scripts/creating_tables.sql* file, database will throw an exception.
     """
-    p = __file__.removesuffix("Python_code/import_module/database.py")+"SQL_scripts/creating_tables"
+    p = __file__.removesuffix("Python_code/import_module/database.py")+"SQL_scripts/creating_tables.sql"
     the_joy_of_creation = ""
     with open(p, 'r') as file:
         the_joy_of_creation = file.read()

@@ -34,7 +34,7 @@ e = database.insert_api_response_current_time(database.get_locations())
 for id, (location, status) in e.items():
     print(id, location.name, status)
 
-e = database.insert_api_response_hourly(database.get_locations(), "2026-05-13", "2026-05-27")
+e = database.insert_api_response_hourly(database.get_locations(), "2026-05-15", "2026-05-30")
 for id, (location, status) in e.items():
     print(id, location.name, status)
 

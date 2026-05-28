@@ -32,7 +32,7 @@ class MeteoResponse:
     | rain                 | -           | mm         |
     | snowfall             | -           | cm         |
     | wind_speed_10m       | -           | km/h       |
-    | wind_direction_10m   | -           | °          |
+    | wind_direction_10m   | 0 - 360     | °          |
     | wind_gusts_10m       | -           | km/h       |
     | date                 | -           | YYYY-MM-DD |
     | time                 | -           | HH:MM:SS   |

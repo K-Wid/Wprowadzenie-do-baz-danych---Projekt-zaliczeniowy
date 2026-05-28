@@ -22,12 +22,21 @@ CREATE TABLE log_import (
 	time_id			INTEGER	NOT NULL,
 	error_id		INTEGER NULL		DEFAULT NULL,
 	import_time_ms	FLOAT,
-	FOREIGN KEY (date_id)
-		REFERENCES date_table(date_id),
-	FOREIGN KEY (time_id)
-		REFERENCES time_table(time_id),
-	FOREIGN KEY (error_id)
-		REFERENCES error_table(error_id)
+	CONSTRAINT log_import_date
+		FOREIGN KEY (date_id)
+			REFERENCES date_table(date_id)
+		ON UPDATE CASCADE
+		ON DELETE RESTRICT,
+	CONSTRAINT log_import_time
+		FOREIGN KEY (time_id)
+			REFERENCES time_table(time_id)
+		ON UPDATE CASCADE
+		ON DELETE RESTRICT,
+	CONSTRAINT log_import_error
+		FOREIGN KEY (error_id)
+			REFERENCES error_table(error_id)
+		ON UPDATE CASCADE
+		ON DELETE RESTRICT
 );
 
 CREATE TABLE timezone (
@@ -44,8 +53,11 @@ CREATE TABLE location_table (
 	elevation		FLOAT	NOT NULL,
 	timezone_id		INTEGER,
 	name			TEXT,
-	FOREIGN KEY (timezone_id)
-		REFERENCES timezone(timezone_id)
+	CONSTRAINT location_timezone
+		FOREIGN KEY (timezone_id)
+			REFERENCES timezone(timezone_id)
+		ON UPDATE CASCADE
+		ON DELETE RESTRICT
 );
 
 CREATE TABLE measurement (
@@ -54,22 +66,37 @@ CREATE TABLE measurement (
 	date_id			INTEGER NOT NULL,
 	time_id			INTEGER NOT NULL,
 	import_id		INTEGER NOT NULL,
-	FOREIGN KEY (location_id)
-		REFERENCES location_table(location_id),
-	FOREIGN KEY (date_id)
-		REFERENCES date_table(date_id),
-	FOREIGN KEY (time_id)
-		REFERENCES time_table(time_id),
-	FOREIGN KEY (import_id)
-		REFERENCES log_import(import_id)
+	CONSTRAINT measurement_location
+		FOREIGN KEY (location_id)
+			REFERENCES location_table(location_id)
+		ON UPDATE CASCADE
+		ON DELETE RESTRICT,
+	CONSTRAINT measurement_date
+		FOREIGN KEY (date_id)
+			REFERENCES date_table(date_id)
+		ON UPDATE CASCADE
+		ON DELETE RESTRICT,
+	CONSTRAINT measurement_time
+		FOREIGN KEY (time_id)
+			REFERENCES time_table(time_id)
+		ON UPDATE CASCADE
+		ON DELETE RESTRICT,
+	CONSTRAINT measurement_import
+		FOREIGN KEY (import_id)
+			REFERENCES log_import(import_id)
+		ON UPDATE CASCADE
+		ON DELETE RESTRICT
 );
 
 CREATE TABLE temperature (
 	measurement_id			INTEGER NOT NULL UNIQUE,
 	temperature				FLOAT	NOT NULL,
 	apparent_temperature	INTEGER NOT NULL,
-	FOREIGN KEY (measurement_id)
-		REFERENCES measurement(measurement_id)
+	CONSTRAINT temperature_measurement
+		FOREIGN KEY (measurement_id)
+			REFERENCES measurement(measurement_id)
+		ON UPDATE CASCADE
+		ON DELETE CASCADE
 );
 
 CREATE TABLE precipitation (
@@ -78,8 +105,13 @@ CREATE TABLE precipitation (
 	precipitation		FLOAT	NOT NULL,
 	rain				FLOAT	NOT NULL,
 	snowfall			FLOAT	NOT NULL,
-	FOREIGN KEY (measurement_id)
-		REFERENCES measurement(measurement_id)
+	CONSTRAINT precipitation_measurement
+		FOREIGN KEY (measurement_id)
+			REFERENCES measurement(measurement_id)
+		ON UPDATE CASCADE
+		ON DELETE CASCADE,
+	CONSTRAINT precipitation_humidity
+		CHECK (relative_humidity BETWEEN 0 AND 100)
 );
 
 CREATE TABLE wind (
@@ -87,8 +119,13 @@ CREATE TABLE wind (
 	wind_speed			FLOAT	NOT NULL,
 	wind_direction		FLOAT	NOT NULL,
 	wind_gusts			FLOAT	NOT NULL,
-	FOREIGN KEY (measurement_id)
-		REFERENCES measurement(measurement_id)
+	CONSTRAINT wind_measurement
+		FOREIGN KEY (measurement_id)
+			REFERENCES measurement(measurement_id)
+		ON UPDATE CASCADE
+		ON DELETE CASCADE,
+	CONSTRAINT wind_wind_direction
+		CHECK (wind_direction BETWEEN 0 AND 360)
 );
 
 CREATE TABLE weather_code (
@@ -101,10 +138,16 @@ CREATE TABLE weather (
 	surface_pressure	FLOAT	NOT NULL,
 	cloud_cover			FLOAT	NOT NULL,
 	weather_code_id		INTEGER	NOT NULL,
-	FOREIGN KEY (measurement_id)
-		REFERENCES measurement(measurement_id),
-	FOREIGN KEY (weather_code_id)
-		REFERENCES weather_code(weather_code_id)
+	CONSTRAINT weather_measurement
+		FOREIGN KEY (measurement_id)
+			REFERENCES measurement(measurement_id)
+		ON UPDATE CASCADE
+		ON DELETE CASCADE,
+	CONSTRAINT weather_weather_code
+		FOREIGN KEY (weather_code_id)
+			REFERENCES weather_code(weather_code_id)
+		ON UPDATE CASCADE
+		ON DELETE RESTRICT
 );
 
 
