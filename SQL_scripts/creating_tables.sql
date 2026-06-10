@@ -150,6 +150,23 @@ CREATE TABLE weather (
 		ON DELETE RESTRICT
 );
 
+-- Indexes
+
+CREATE INDEX idx_import_id
+	ON log_import (import_id);
+
+CREATE INDEX idx_measurement_id
+	ON measurement (measurement_id);
+
+CREATE INDEX idx_location_id
+	ON location_table (location_id);
+
+CREATE INDEX idx_date_id
+	ON date_table (date_id);
+
+CREATE INDEX idx_time_id
+	ON time_table (time_id);
+
 
 -- Weather codes
 
