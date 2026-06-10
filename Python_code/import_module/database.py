@@ -7,8 +7,8 @@ import openmeteo_requests
 import requests_cache
 from retry_requests import retry
 
-import config
-import import_from_openmeteo
+from . import config
+from . import import_from_openmeteo
 
 from typing import Tuple, List, Dict
 from datetime import datetime, timezone, timedelta
