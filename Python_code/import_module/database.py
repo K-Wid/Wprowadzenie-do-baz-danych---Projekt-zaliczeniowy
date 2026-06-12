@@ -118,6 +118,7 @@ def get_dataframe_from_sql(sql_command: str) -> pd.DataFrame:
     """
     with engine.connect() as connection:
         result = connection.execute(text(sql_command))
+        connection.commit()
         df = pd.DataFrame(result)
         return df
 
@@ -159,16 +160,28 @@ def get_or_create_date_id(date: str, create_new_entry: bool = False) -> int | No
     :param create_new_entry: If **False** - When date isn't in database -> return None.     If **True** - When date isn't in database -> Create new date in database and return its date_id
     :type create_new_entry: bool
     """
-    df = get_dataframe_from_sql(f"SELECT date_table.date_id FROM date_table WHERE date_table.date_value = '{date}';")
-    if df.empty:
-        if not create_new_entry: return None
-        with engine.connect() as connection:
-            connection.execute(text(f"INSERT INTO date_table (date_value) VALUES ('{date}');"))
-            connection.commit()
-        new_index = get_dataframe_from_sql("SELECT currval(pg_get_serial_sequence('date_table', 'date_id')) AS new_id;").at[0, 'new_id']
-        return new_index
-    else:
-        return df.at[0, "date_id"]
+    sql_command = f"""
+        WITH insert_result AS (
+            INSERT INTO date_table(date_value)
+                VALUES ('{date}')
+                ON CONFLICT (date_value) DO NOTHING
+                RETURNING date_id
+        )
+        SELECT date_id 
+            FROM insert_result
+            UNION ALL
+            SELECT date_id
+                FROM date_table
+                WHERE date_value = '{date}'
+        ;
+        """ if create_new_entry else f"""
+        SELECT date_id
+            FROM date_table
+            WHERE date_value = '{date}';
+        """
+    df = get_dataframe_from_sql(sql_command)
+    if df.empty: return None
+    return df.at[0, 'date_id']
 
 
 def get_or_create_time_id(time: str, create_new_entry: bool = False) -> int | None:
@@ -182,16 +195,28 @@ def get_or_create_time_id(time: str, create_new_entry: bool = False) -> int | No
     :return: Found or created *time_id*; None unable to create and time not found in database.
     :rtype: int | None
     """
-    df = get_dataframe_from_sql(f"SELECT time_table.time_id FROM time_table WHERE time_table.time_value = '{time}';")
-    if df.empty:
-        if not create_new_entry: return None
-        with engine.connect() as connection:
-            connection.execute(text(f"INSERT INTO time_table (time_value) VALUES ('{time}');"))
-            connection.commit()
-        new_index = get_dataframe_from_sql("SELECT currval(pg_get_serial_sequence('time_table', 'time_id')) AS new_id;").at[0, 'new_id']
-        return new_index
-    else:
-        return df.at[0, "time_id"]
+    sql_command = f"""
+        WITH insert_result AS (
+            INSERT INTO time_table(time_value)
+                VALUES ('{time}')
+                ON CONFLICT (time_value) DO NOTHING
+                RETURNING time_id
+        )
+        SELECT time_id 
+            FROM insert_result
+            UNION ALL
+            SELECT time_id
+                FROM time_table
+                WHERE time_value = '{time}'
+        ;
+        """ if create_new_entry else f"""
+        SELECT time_id
+            FROM time_table
+            WHERE time_value = '{time}';
+        """
+    df = get_dataframe_from_sql(sql_command)
+    if df.empty: return None
+    return df.at[0, 'time_id']
 
 
 def check_if_measurement_already_exists(date: str, time: str, location_id: int) -> int | None:

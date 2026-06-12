@@ -3,12 +3,12 @@
 
 CREATE TABLE date_table (
 	date_id			SERIAL	PRIMARY KEY,
-	date_value		DATE	NOT NULL
+	date_value		DATE	NOT NULL UNIQUE
 );
 
 CREATE TABLE time_table (
 	time_id			SERIAL PRIMARY KEY,
-	time_value		TIME	NOT NULL
+	time_value		TIME	NOT NULL UNIQUE
 );
 
 CREATE TABLE error_table (
