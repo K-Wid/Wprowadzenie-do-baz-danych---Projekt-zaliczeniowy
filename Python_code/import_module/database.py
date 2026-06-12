@@ -274,10 +274,12 @@ def insert_measurement_single(import_id: int, location_id: int, api_response: im
     date_id = get_or_create_date_id(api_response.date, True)
     time_id = get_or_create_time_id(api_response.time, True)
  
-    with engine.connect() as connection:
-        connection.execute(text(f"INSERT INTO measurement (location_id, date_id, time_id, import_id) VALUES ({location_id}, {date_id}, {time_id}, {import_id});"))
-        connection.commit()
-    measurement_id = get_dataframe_from_sql("SELECT currval(pg_get_serial_sequence('measurement', 'measurement_id')) AS new_id;").at[0, 'new_id']
+    measurement_id = get_dataframe_from_sql(f"""
+        INSERT INTO measurement (location_id, date_id, time_id, import_id) 
+            VALUES ({location_id}, {date_id}, {time_id}, {import_id})
+            RETURNING measurement_id;
+        """).at[0, 'measurement_id']
+
     with engine.connect() as connection:
         connection.execute(text(f"INSERT INTO temperature (measurement_id, temperature, apparent_temperature) VALUES ({measurement_id}, {api_response.temperature_2m}, {api_response.apparent_temperature});"))
         connection.execute(text(f"INSERT INTO precipitation (measurement_id, relative_humidity, precipitation, rain, snowfall) VALUES ({measurement_id}, {api_response.relative_humidity_2m}, {api_response.precipitation}, {api_response.rain}, {api_response.snowfall});"))
