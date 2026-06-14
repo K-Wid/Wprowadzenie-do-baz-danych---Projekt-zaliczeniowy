@@ -31,12 +31,21 @@ database.add_location(database.Location("Bermuda triangle", 25, 70, 20))
 database.add_location(database.Location("Sth", 75, 20, 20))
 
 e = database.insert_api_response_current_time(database.get_locations())
+d = {"location_id":[], "location_name":[], "insert status":[]}
 for id, (location, status) in e.items():
-    print(id, location.name, status.name, sep='\t')
+    d["location_id"].append(id)
+    d["location_name"].append(location.name)
+    d["insert status"].append(status.name)
+print("Current data\n", pd.DataFrame(d), end="\n\n", sep='')
 
-e = database.insert_api_response_hourly(database.get_locations(), "2026-05-15", "2026-05-30")
+t = ("2026-05-15", "2026-05-30")
+e = database.insert_api_response_hourly(database.get_locations(), *t)
+d = {"location_id":[], "location_name":[], "insert status":[]}
 for id, (location, status) in e.items():
-    print(id, location.name, status.name, sep='\t')
+    d["location_id"].append(id)
+    d["location_name"].append(location.name)
+    d["insert status"].append(status.name)
+print("Hourly data from "+t[0]+" to "+t[1]+"\n", pd.DataFrame(d), end="\n\n", sep='')
 
 df = database.get_dataframe_from_sql("""
 SELECT date_table.date_value AS date, time_table.time_value AS time, location_table.name AS location, weather_code.description AS weather
@@ -48,4 +57,4 @@ JOIN weather ON weather.measurement_id = measurement.measurement_id
 JOIN weather_code ON weather_code.weather_code_id = weather.weather_code_id
 ORDER BY location ASC, date DESC, time DESC;
 """)
-print(df)
+print("All measurements in database\n", df, sep='')
