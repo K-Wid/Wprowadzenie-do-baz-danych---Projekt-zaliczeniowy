@@ -241,6 +241,14 @@ def check_if_measurement_already_exists(date: str, time: str, location_id: int) 
 
 
 def update_error_code(import_id: int, insert_status: InsertStatus) -> None:
+    """
+    Function handling updating insert_status for import in database.
+    
+    :param import_id: id of import to update
+    :type import_id: int
+    :param insert_status: New status
+    :type insert_status: InsertStatus
+    """
     with engine.connect() as connection:
         connection.execute(text(f"UPDATE log_import SET error_id = {insert_status.value} WHERE log_import.import_id = {import_id};"))
         connection.commit()
@@ -250,7 +258,7 @@ def insert_log_import() -> int:
     """
     Function creates new entry in *log_import* table in database.
 
-    New entry contains only current date and time.
+    New entry contains only current date and time. Error code can be later updated with `update_error_code` function.
     
     :return: *import_id* of freshly created entry.
     :rtype: int
@@ -268,6 +276,18 @@ def insert_log_import() -> int:
 
 
 def insert_measurement_single(import_id: int, location_id: int, api_response: import_from_openmeteo.MeteoResponse) -> InsertStatus:
+    """
+    Function responsible for inserting OpenMeteo response into database.
+
+    :param import_id: import_id to write in *meaurement* table
+    :type import_id: int
+    :param location_id: location_id to write in *meaurement* table
+    :type location_id: int
+    :param api_response: OpenMeteo response converted by `MeteoResponse` class
+    :type api_response: import_from_openmeteo.MeteoResponse
+    :return: `SUCCESS` or `MASUREMENT_ALREADY_EXISTS`
+    :rtype: database.InsertStatus
+    """
     measurement_id = check_if_measurement_already_exists(api_response.date, api_response.time, location_id)
     if measurement_id is not None: return InsertStatus.MASUREMENT_ALREADY_EXISTS
 
@@ -297,7 +317,15 @@ def insert_measurement_multiple(import_id: int, location_id: int, api_response: 
     return status_dict
 
 
-def insert_api_response_current_time(locations: List[Location]) -> Dict[int, Tuple[str, InsertStatus]]:
+def insert_api_response_current_time(locations: List[Location]) -> Dict[int, Tuple[Location, InsertStatus]]:
+    """
+    Function requests current meteo data from OpenMeteo API and inserts it to database.
+    
+    :param locations: List of *Location* objects for which meteo data will be updated. Use of `get_locations` function is recommended.
+    :type locations: List[Location]
+    :return: Dictionary with key `location_id` and value containing corresponding `Location` object and one of two possible status values: `SUCCESS` or `MASUREMENT_ALREADY_EXISTS`.
+    :rtype: Dict[int, Tuple[Location, InsertStatus]]
+    """
     params = {
         "latitude": [l.latitude for l in locations],
         "longitude": [l.longitude for l in locations],
@@ -316,6 +344,14 @@ def insert_api_response_current_time(locations: List[Location]) -> Dict[int, Tup
 
 
 def insert_api_response_hourly(locations: List[Location], start_date: str, end_date: str):
+    """
+    Function requests hourly meteo data (in given date range) from OpenMeteo API and inserts it to database.
+    
+    :param locations: List of *Location* objects for which meteo data will be updated. Use of `get_locations` function is recommended.
+    :type locations: List[Location]
+    :return: Dictionary with key `location_id` and value containing corresponding `Location` object and one of three possible status values: `SUCCESS`, `SOME_MEASUREMENTS_EXISTED` or `ALL_MEASUREMENTS_EXISTED`.
+    :rtype: Dict[int, Tuple[Location, InsertStatus]]
+    """
     params = {
         "latitude": [l.latitude for l in locations],
         "longitude": [l.longitude for l in locations],
