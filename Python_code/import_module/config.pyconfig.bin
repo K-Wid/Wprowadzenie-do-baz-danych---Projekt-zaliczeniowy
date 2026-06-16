@@ -1,0 +1,1 @@
+postgresql://postgres:haslo@localhost:5432/pogoda

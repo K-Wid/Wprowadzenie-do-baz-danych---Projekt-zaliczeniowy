@@ -7,14 +7,27 @@ import openmeteo_requests
 import requests_cache
 from retry_requests import retry
 
-from . import config
-from . import import_from_openmeteo
+from import_module import config
+from import_module import import_from_openmeteo
 
 from typing import Tuple, List, Dict
 from datetime import datetime, timezone, timedelta
 from enum import Enum
 
+from pathlib import Path
+
+import os
+import sys
+
 global engine
+
+def pobierz_sciezke(wzgledna_sciezka):
+    try:
+        sciezka_bazowa = sys._MEIPASS
+    except AttributeError:
+        sciezka_bazowa = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        
+    return os.path.join(sciezka_bazowa, wzgledna_sciezka)
 
 
 class InsertStatus(Enum):
@@ -57,7 +70,8 @@ def create_all_tables() -> None:
 
     If database contains tables included in *SQL_scripts/creating_tables.sql* file, database will throw an exception.
     """
-    p = __file__.removesuffix("Python_code/import_module/database.py")+"SQL_scripts/creating_tables.sql"
+    #p = Path(__file__).parent.parent.parent / 'SQL_scripts' / 'creating_tables.sql'
+    p = pobierz_sciezke(os.path.join("SQL_scripts", "creating_tables.sql"))
     the_joy_of_creation = ""
     with open(p, 'r') as file:
         the_joy_of_creation = file.read()
@@ -375,4 +389,3 @@ def insert_api_response_hourly(locations: List[Location], start_date: str, end_d
         update_error_code(import_id, final_status)
         result_dict[location.id] = (location, final_status)
     return result_dict
-

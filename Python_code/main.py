@@ -1,4 +1,4 @@
-from GUI import WeatherApp
+from import_module.GUI import WeatherApp
 
 def main():
     app = WeatherApp()
@@ -6,3 +6,6 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+  
+
