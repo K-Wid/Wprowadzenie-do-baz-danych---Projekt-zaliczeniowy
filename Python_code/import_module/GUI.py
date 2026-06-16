@@ -4,6 +4,7 @@ from sqlalchemy.engine import URL
 import requests
 import threading
 from import_module import database as db
+from import_module import config
 
 DB_URL = URL.create(
     drivername="postgresql",
@@ -23,10 +24,23 @@ class WeatherApp(ctk.CTk):
         self.title("Baza Danych - Stacja Pogodowa")
         self.geometry("950x650")
 
+        db_url = config.read_config()
+        if not isinstance(db_url, URL):
+            db_url = URL.create(
+                drivername="postgresql",
+                username="postgres",      
+                password="haslo",         
+                host="localhost",
+                port=5432,
+                database="pogoda",        
+            )
+            config.save_config(db_url, True)
+            db_url = config.read_config()
+
         try:
-            db.setup_engine(DB_URL)
+            db.setup_engine(db_url)
         except Exception as e:
-            messagebox.showwarning("Błąd Bazy", f"Nie udało się połączyć z bazą.\n{e}")
+            messagebox.showwarning("Błąd Bazy", f"Nie udało się połączyć z bazą.\nSprawdź plik konfiguracyjny.\n\nSzczegóły:\n{e}")
 
         self.miasta = self.pobierz_miasta_z_bazy()
         
