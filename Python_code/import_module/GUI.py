@@ -5,6 +5,9 @@ import requests
 import threading
 from import_module import database as db
 from import_module import config
+import matplotlib.pyplot as plt
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+import pandas as pd
 
 DB_URL = URL.create(
     drivername="postgresql",
@@ -91,6 +94,27 @@ class WeatherApp(ctk.CTk):
         frame_mid = ctk.CTkFrame(self)
         frame_mid.pack(pady=10, padx=20, fill="x")
 
+        frame_left = ctk.CTkFrame(frame_mid)
+        frame_left.pack(side="left", fill="both", expand=True)
+ 
+        frame_right = ctk.CTkFrame(frame_mid)
+        frame_right.pack(side="right", fill="y", padx=10)
+
+        self.wykres_param = ctk.StringVar(value="Temperatura")
+        ctk.CTkLabel(frame_right, text="Parametr wykresu:").grid(
+            row=0, column=0, columnspan=2, sticky="w", pady=(0, 2)
+        )
+
+        self.combo_wykres = ctk.CTkComboBox(
+            frame_right,
+            values=["Temperatura", "Wilgotność", "Ciśnienie", "Opady"],
+            variable=self.wykres_param
+        )
+        self.combo_wykres.grid(row=1, column=0, columnspan=2, sticky="we", pady=(0, 10))
+
+        self.tabs_parametry = ctk.CTkTabview(frame_left, height=160)
+        self.tabs_parametry.pack(fill="x", padx=5, pady=5)
+
         self.vars = {
             "Opady": {
                 "Relatywna wilgotność": ctk.BooleanVar(),
@@ -126,8 +150,6 @@ class WeatherApp(ctk.CTk):
             }
         }
 
-        self.tabs_parametry = ctk.CTkTabview(frame_mid, height=140)
-        self.tabs_parametry.pack(side="left", fill="both", expand=True, padx=(0, 10))
 
         for kategoria, opcje in self.vars.items():
             self.tabs_parametry.add(kategoria)
@@ -141,27 +163,36 @@ class WeatherApp(ctk.CTk):
                     col = 0
                     row += 1
 
-        frame_dates = ctk.CTkFrame(frame_mid, fg_color="transparent")
-        frame_dates.pack(side="right", padx=10, pady=10)
-        
-        ctk.CTkLabel(frame_dates, text="Od (YYYY-MM-DD):").grid(row=0, column=0, padx=5, pady=2, sticky="e")
-        self.entry_od = ctk.CTkEntry(frame_dates, width=120)
-        self.entry_od.grid(row=0, column=1, padx=5, pady=2)
-        
-        ctk.CTkLabel(frame_dates, text="Do (YYYY-MM-DD):").grid(row=1, column=0, padx=5, pady=2, sticky="e")
-        self.entry_do = ctk.CTkEntry(frame_dates, width=120)
-        self.entry_do.grid(row=1, column=1, padx=5, pady=2)
+        ctk.CTkLabel(frame_right, text="Od (YYYY-MM-DD):").grid(
+            row=2, column=0, padx=5, pady=2, sticky="e"
+        )
+        self.entry_od = ctk.CTkEntry(frame_right, width=140)
+        self.entry_od.grid(row=2, column=1, padx=5, pady=2)
 
-        btn_szukaj = ctk.CTkButton(frame_dates, text="Pobierz dane", font=ctk.CTkFont(weight="bold"), command=self.pobierz_dane)
-        btn_szukaj.grid(row=2, column=0, columnspan=2, pady=(10, 0), sticky="we")
+        ctk.CTkLabel(frame_right, text="Do (YYYY-MM-DD):").grid(
+            row=3, column=0, padx=5, pady=2, sticky="e"
+        )
+        self.entry_do = ctk.CTkEntry(frame_right, width=140)
+        self.entry_do.grid(row=3, column=1, padx=5, pady=2)
 
-        frame_tree = ctk.CTkFrame(self)
-        frame_tree.pack(pady=10, padx=20, fill="both", expand=True)
+        btn_szukaj = ctk.CTkButton(
+            frame_right,
+            text="Pobierz dane",
+            font=ctk.CTkFont(weight="bold"),
+            command=self.pobierz_dane
+        )
 
-        style = ttk.Style()
-        style.theme_use("default")
-        style.configure("Treeview.Heading", font=('Arial', 12, 'bold'))
-        style.configure("Treeview", font=('Arial', 11), rowheight=25)
+        btn_wykres = ctk.CTkButton(
+            frame_right,
+            text="Pokaż wykres",
+            command=self.pokaz_wykres
+        )
+
+        btn_szukaj.grid(row=4, column=0, columnspan=2, sticky="we", pady=(10, 5))
+        btn_wykres.grid(row=5, column=0, columnspan=2, sticky="we", pady=5)
+
+        frame_tree = ctk.CTkFrame(frame_left)
+        frame_tree.pack(fill="both", expand=True, pady=10)
 
         self.tree = ttk.Treeview(frame_tree, show="headings")
         self.tree.pack(side="left", fill="both", expand=True)
@@ -169,6 +200,13 @@ class WeatherApp(ctk.CTk):
         vsb = ttk.Scrollbar(frame_tree, orient="vertical", command=self.tree.yview)
         vsb.pack(side="right", fill="y")
         self.tree.configure(yscrollcommand=vsb.set)
+
+        self.frame_chart = ctk.CTkFrame(self)
+        self.frame_chart.pack(fill="both", expand=True, padx=20, pady=10)
+
+        self.canvas = None
+
+    
 
     def dodaj_miasto(self):
         nowe_miasto = self.entry_nowe_miasto.get().strip()
@@ -201,7 +239,7 @@ class WeatherApp(ctk.CTk):
                     self.combo_miasto.set(nazwa_oficjalna)
                     self.entry_nowe_miasto.delete(0, 'end')
                     self.aktualizuj_baze()
-                    messagebox.showinfo("Sukces", f"Zapisano {nazwa_oficjalna} w bazie danych.")
+                    messagebox.showinfo("Sukces", f"Zapisano {nazwa_oficjalna} w bazie danych.")                
                 else:
                     messagebox.showerror("Błąd", "Nie udało się zapisać miasta w bazie (prawdopodobnie już tam istnieje).")
             else:
@@ -305,6 +343,109 @@ class WeatherApp(ctk.CTk):
 
         except Exception as e:
             messagebox.showerror("Błąd Bazy", f"Wystąpił problem przy zapytaniu:\n{e}")
+
+    def pokaz_wykres(self):
+
+        param = self.combo_wykres.get()
+        miasto = self.combo_miasto.get()
+        data_od = self.entry_od.get().strip()
+        data_do = self.entry_do.get().strip()
+
+        joins = [
+            "JOIN location_table l ON m.location_id = l.location_id",
+            "JOIN date_table d ON m.date_id = d.date_id",
+            "JOIN time_table t_time ON m.time_id = t_time.time_id"
+        ]
+
+        if param == "Temperatura":
+            select_col = "temp.temperature"
+            joins.append("JOIN temperature temp ON m.measurement_id = temp.measurement_id")
+            ylabel = "°C"
+
+        elif param == "Wilgotność":
+            select_col = "p.relative_humidity"
+            joins.append("JOIN precipitation p ON m.measurement_id = p.measurement_id")
+            ylabel = "%"
+
+        elif param == "Ciśnienie":
+            select_col = "w.surface_pressure"
+            joins.append("JOIN weather w ON m.measurement_id = w.measurement_id")
+            ylabel = "hPa"
+
+        elif param == "Opady":
+            select_col = "p.rain"
+            joins.append("JOIN precipitation p ON m.measurement_id = p.measurement_id")
+            ylabel = "mm"
+
+        query = f"""
+        SELECT
+            d.date_value,
+            t_time.time_value,
+            {select_col} AS value
+        FROM measurement m
+        {' '.join(joins)}
+        WHERE l.name = '{miasto}'
+        """
+
+        if data_od:
+            query += f" AND d.date_value >= '{data_od}'"
+
+        if data_do:
+            query += f" AND d.date_value <= '{data_do}'"
+
+        query += """
+        ORDER BY d.date_value, t_time.time_value
+        """
+
+        try:
+            df = db.get_dataframe_from_sql(query)
+
+            if df.empty:
+                messagebox.showinfo(
+                    "Brak danych",
+                    "Brak danych do narysowania wykresu."
+                )
+                return
+
+            df["datetime"] = pd.to_datetime(
+                df["date_value"].astype(str)
+                + " "
+                + df["time_value"].astype(str)
+            )
+
+            if self.canvas:
+                self.canvas.get_tk_widget().destroy()
+
+            fig, ax = plt.subplots(figsize=(8, 4))
+
+            ax.plot(df["datetime"], df["value"])
+
+            ax.set_title(f"{param} - {miasto}")
+            ax.set_xlabel("Czas")
+            ax.set_ylabel(ylabel)
+            ax.grid(True)
+
+            fig.autofmt_xdate()
+
+            self.canvas = FigureCanvasTkAgg(
+                fig,
+                master=self.frame_chart
+            )
+
+            self.canvas.draw()
+            self.canvas.get_tk_widget().pack(
+                fill="both",
+                expand=True
+            )
+
+        except Exception as e:
+            messagebox.showerror(
+                "Błąd",
+                str(e)
+            )
+
+
+
 
 if __name__ == "__main__":
     app = WeatherApp()
