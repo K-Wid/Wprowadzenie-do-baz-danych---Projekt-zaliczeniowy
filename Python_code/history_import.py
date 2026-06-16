@@ -1,14 +1,8 @@
 from sqlalchemy import URL
 from import_module import database
+from import_module import config
 
-db_url = URL.create(
-    drivername="postgresql+psycopg2",
-    username="postgres",
-    password="postgres",
-    host="localhost",
-    port=5432,
-    database="pogoda"
-)
+db_url = config.read_config()
 
 database.setup_engine(db_url)
 
