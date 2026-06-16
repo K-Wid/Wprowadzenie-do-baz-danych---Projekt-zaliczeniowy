@@ -200,7 +200,8 @@ class WeatherApp(ctk.CTk):
                     
                     self.combo_miasto.set(nazwa_oficjalna)
                     self.entry_nowe_miasto.delete(0, 'end')
-                    messagebox.showinfo("Sukces", f"Zapisano {nazwa_oficjalna} w bazie danych.\n\nUwaga: Samo miasto zostało dodane, ale musisz teraz uruchomić funkcję pobierającą dane pogodowe dla tej lokalizacji, aby widzieć wyniki pomiarów.")
+                    self.aktualizuj_baze()
+                    messagebox.showinfo("Sukces", f"Zapisano {nazwa_oficjalna} w bazie danych.")
                 else:
                     messagebox.showerror("Błąd", "Nie udało się zapisać miasta w bazie (prawdopodobnie już tam istnieje).")
             else:
