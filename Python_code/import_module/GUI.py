@@ -346,6 +346,7 @@ class WeatherApp(ctk.CTk):
 
     def pokaz_wykres(self):
 
+        
         param = self.combo_wykres.get()
         miasto = self.combo_miasto.get()
         data_od = self.entry_od.get().strip()
@@ -418,11 +419,53 @@ class WeatherApp(ctk.CTk):
 
             fig, ax = plt.subplots(figsize=(8, 4))
 
-            ax.plot(df["datetime"], df["value"])
+            # TEMPERATURA -> liniowy
+            if param == "Temperatura":
+
+                ax.plot(
+                    df["datetime"],
+                    df["value"],
+                    linewidth=2
+                )
+
+                ax.set_xlabel("Czas")
+                ax.set_ylabel(ylabel)
+
+            # OPADY -> słupkowy
+            elif param == "Opady":
+
+                ax.bar(
+                    df["datetime"],
+                    df["value"],
+                    width=0.02
+                )
+
+                ax.set_xlabel("Czas")
+                ax.set_ylabel(ylabel)
+
+            # WILGOTNOŚĆ -> histogram
+            elif param == "Wilgotność":
+
+                ax.hist(
+                    df["value"],
+                    bins=15, width=0.3
+                )
+
+                ax.set_xlabel("Wilgotność [%]")
+                ax.set_ylabel("Liczba pomiarów")
+
+            # CIŚNIENIE -> wykres liniowy
+            elif param == "Ciśnienie":
+
+                ax.plot(
+                    df["datetime"],
+                    df["value"]
+                )
+
+                ax.set_xlabel("Czas")
+                ax.set_ylabel(ylabel)
 
             ax.set_title(f"{param} - {miasto}")
-            ax.set_xlabel("Czas")
-            ax.set_ylabel(ylabel)
             ax.grid(True)
 
             fig.autofmt_xdate()
